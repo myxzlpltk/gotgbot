@@ -10,6 +10,10 @@ import (
 type Context struct {
 	// gotgbot.Update is inlined so that we can access all fields immediately if necessary.
 	*gotgbot.Update
+	// We store the info of the Bot that received this update so we can keep track of update ownership.
+	// We do NOT store full gotgbot.Bot struct, as that would leak the bot token and bot client information in what
+	// should be a data-only struct.
+	Bot gotgbot.User
 	// Data represents update-local storage.
 	// This can be used to pass data across handlers - for example, to cache operations relevant to the current update,
 	// such as admin checks.
@@ -35,9 +39,9 @@ type Context struct {
 	EffectiveSender *gotgbot.Sender
 }
 
-// NewContext populates a context with the relevant fields from the current update.
+// NewContext populates a context with the relevant fields from the current bot and update.
 // It takes a data field in the case where custom data needs to be passed.
-func NewContext(update *gotgbot.Update, data map[string]interface{}) *Context {
+func NewContext(b *gotgbot.Bot, update *gotgbot.Update, data map[string]interface{}) *Context {
 	var msg *gotgbot.Message
 	var chat *gotgbot.Chat
 	var user *gotgbot.User
@@ -162,6 +166,7 @@ func NewContext(update *gotgbot.Update, data map[string]interface{}) *Context {
 
 	return &Context{
 		Update:           update,
+		Bot:              b.User,
 		Data:             data,
 		EffectiveMessage: msg,
 		EffectiveChat:    chat,

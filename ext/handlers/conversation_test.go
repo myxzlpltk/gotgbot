@@ -37,14 +37,14 @@ func TestBasicConversation(t *testing.T) {
 	var chatId int64 = 1234
 
 	// Emulate sending the "start" command, triggering the entrypoint.
-	startCommand := NewCommandMessage(userId, chatId, "start", []string{})
+	startCommand := NewCommandMessage(b, userId, chatId, "start", []string{})
 	runHandler(t, b, &conv, startCommand, "", nextStep)
 	if !started {
 		t.Fatalf("expected the entrypoint handler to have run")
 	}
 
 	// Emulate sending the "message" text, triggering the internal handler (and causing it to "end").
-	textMessage := NewMessage(userId, chatId, "message")
+	textMessage := NewMessage(b, userId, chatId, "message")
 	runHandler(t, b, &conv, textMessage, nextStep, "")
 	if !ended {
 		t.Fatalf("expected the internal handler to have run")
@@ -79,8 +79,8 @@ func TestBasicKeyedConversation(t *testing.T) {
 	var chatId int64 = 1234
 
 	// Emulate sending the "start" command, triggering the entrypoint.
-	startFromUserOne := NewCommandMessage(userIdOne, chatId, "start", []string{})
-	messageFromTwo := NewMessage(userIdTwo, chatId, "message")
+	startFromUserOne := NewCommandMessage(b, userIdOne, chatId, "start", []string{})
+	messageFromTwo := NewMessage(b, userIdTwo, chatId, "message")
 
 	runHandler(t, b, &conv, startFromUserOne, "", nextStep)
 
@@ -121,14 +121,14 @@ func TestBasicConversationExit(t *testing.T) {
 	var chatId int64 = 1234
 
 	// Emulate sending the "start" command, triggering the entrypoint, and starting the conversation.
-	startCommand := NewCommandMessage(userId, chatId, "start", []string{})
+	startCommand := NewCommandMessage(b, userId, chatId, "start", []string{})
 	runHandler(t, b, &conv, startCommand, "", nextStep)
 	if !started {
 		t.Fatalf("expected the entrypoint handler to have run")
 	}
 
 	// Emulate sending the "cancel" command, triggering the exitpoint, and immediately ending the conversation.
-	cancelCommand := NewCommandMessage(userId, chatId, "cancel", []string{})
+	cancelCommand := NewCommandMessage(b, userId, chatId, "cancel", []string{})
 	runHandler(t, b, &conv, cancelCommand, nextStep, "")
 	if !ended {
 		t.Fatalf("expected the cancel command to have run")
@@ -138,7 +138,7 @@ func TestBasicConversationExit(t *testing.T) {
 	checkExpectedState(t, &conv, cancelCommand, "")
 
 	// Emulate sending the "message" text, which now should not interact with the conversation.
-	textMessage := NewMessage(userId, chatId, "message")
+	textMessage := NewMessage(b, userId, chatId, "message")
 	if conv.CheckUpdate(b, textMessage) {
 		t.Fatalf("did not expect the internal handler to run")
 	}
@@ -177,14 +177,14 @@ func TestFallbackConversation(t *testing.T) {
 	var chatId int64 = 1234
 
 	// Emulate sending the "start" command, triggering the entrypoint.
-	startCommand := NewCommandMessage(userId, chatId, "start", []string{})
+	startCommand := NewCommandMessage(b, userId, chatId, "start", []string{})
 	runHandler(t, b, &conv, startCommand, "", nextStep)
 	if !started {
 		t.Fatalf("expected the entrypoint handler to have run")
 	}
 
 	// Emulate sending the "cancel" command, triggering the fallback handler (and causing it to "end").
-	cancelCommand := NewCommandMessage(userId, chatId, "cancel", []string{})
+	cancelCommand := NewCommandMessage(b, userId, chatId, "cancel", []string{})
 	runHandler(t, b, &conv, cancelCommand, nextStep, "")
 	if !fallback {
 		t.Fatalf("expected the fallback handler to have run")
@@ -220,14 +220,14 @@ func TestReEntryConversation(t *testing.T) {
 	var chatId int64 = 1234
 
 	// Emulate sending the "start" command, triggering the entrypoint.
-	startCommand := NewCommandMessage(userId, chatId, "start", []string{})
+	startCommand := NewCommandMessage(b, userId, chatId, "start", []string{})
 	runHandler(t, b, &conv, startCommand, "", nextStep)
 	if startCount != 1 {
 		t.Fatalf("expected the entrypoint handler to have run")
 	}
 
 	// Send a message which matches both the entrypoint, and the "nextStep" state.
-	cancelCommand := NewCommandMessage(userId, chatId, "start", []string{"message"})
+	cancelCommand := NewCommandMessage(b, userId, chatId, "start", []string{"message"})
 	runHandler(t, b, &conv, cancelCommand, nextStep, nextStep) // Should hit
 	if startCount != 2 {
 		t.Fatalf("expected the entrypoint handler to have run a second time")
@@ -285,20 +285,20 @@ func TestNestedConversation(t *testing.T) {
 	var chatId int64 = 1234
 
 	// Emulate sending the "start" command, triggering the entrypoint.
-	start := NewCommandMessage(userId, chatId, startCmd, []string{})
+	start := NewCommandMessage(b, userId, chatId, startCmd, []string{})
 	runHandler(t, b, &conv, start, "", firstStep)
 
 	// Emulate sending the "message" text, triggering the internal handler (and causing it to "end").
-	textMessage := NewMessage(userId, chatId, messageText)
+	textMessage := NewMessage(b, userId, chatId, messageText)
 	runHandler(t, b, &conv, textMessage, firstStep, secondStep)
 
 	// Emulate sending the "nested_start" command, triggering the entrypoint of the nested conversation.
-	nestedStart := NewCommandMessage(userId, chatId, nestedStartCmd, []string{})
+	nestedStart := NewCommandMessage(b, userId, chatId, nestedStartCmd, []string{})
 	willRunHandler(t, b, &nestedConv, nestedStart, "")
 	runHandler(t, b, &conv, nestedStart, secondStep, secondStep)
 
 	// Emulate sending the "nested_start" command, triggering the entrypoint of the nested conversation.
-	nestedFinish := NewMessage(userId, chatId, finishNestedText)
+	nestedFinish := NewMessage(b, userId, chatId, finishNestedText)
 	willRunHandler(t, b, &nestedConv, nestedFinish, nestedStep)
 	runHandler(t, b, &conv, nestedFinish, secondStep, thirdStep)
 
@@ -307,7 +307,7 @@ func TestNestedConversation(t *testing.T) {
 	t.Log("Nested conversation finished")
 
 	// Emulate sending the "message" text, triggering the internal handler (and causing it to "end").
-	finish := NewMessage(userId, chatId, finishText)
+	finish := NewMessage(b, userId, chatId, finishText)
 	runHandler(t, b, &conv, finish, thirdStep, "")
 
 	checkExpectedState(t, &conv, textMessage, "")
@@ -329,7 +329,7 @@ func TestEmptyKeyConversation(t *testing.T) {
 	)
 
 	// Run an empty
-	pollUpd := ext.NewContext(&gotgbot.Update{
+	pollUpd := ext.NewContext(b, &gotgbot.Update{
 		UpdateId: rand.Int63(), // should this be consistent?
 		Poll: &gotgbot.Poll{
 			Id:                    "some_id",
